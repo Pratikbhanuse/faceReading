@@ -1,15 +1,28 @@
+from flask import Flask, render_template, request, Response
 import cv2
 import numpy as np
-from keras.models import load_model
 from deepface import DeepFace
+import os
+from werkzeug.utils import secure_filename
 
-# Load pre-trained models for age and gender detection
+app = Flask(__name__)
+
+# Load models
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 age_net = cv2.dnn.readNetFromCaffe('deploy_age.prototxt', 'age_net.caffemodel')
 gender_net = cv2.dnn.readNetFromCaffe('deploy_gender.prototxt', 'gender_net.caffemodel')
 
 age_list = ['(0-2)', '(4-6)', '(8-12)', '(15-20)', '(25-32)', '(38-43)', '(48-53)', '(60-100)']
 gender_list = ['Male', 'Female']
+
+# Upload folder and allowed extensions
+UPLOAD_FOLDER = 'uploads/'
+ALLOWED_EXTENSIONS = {'mp4', 'avi', 'mov'}
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def detect_attributes(frame):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -27,36 +40,83 @@ def detect_attributes(frame):
         age_net.setInput(blob)
         age = age_list[age_net.forward().argmax()]
 
-        # Using DeepFace to predict emotion
+        # Predict emotion using DeepFace
         try:
-            # Analyze the face with DeepFace for emotion detection
             emotion_analysis = DeepFace.analyze(face_img, actions=['emotion'], enforce_detection=False)
             emotion = emotion_analysis[0]['dominant_emotion']
-        except Exception as e:
-            print(f"Error during emotion detection: {e}")
+        except:
             emotion = "Unknown"
 
-        # Create label for the face (Gender, Age, Emotion)
-        label = f'{gender}, {age}, {emotion}'
-        label_position = (x, y - 10) if y - 10 > 10 else (x, y + h + 10)  # Ensure text is visible
+        # Draw label
+        label = f"{gender}, {age}, {emotion}"
         cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-
-        # Display the label
-        cv2.putText(frame, label, label_position, cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
+        cv2.putText(frame, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
 
     return frame
 
+@app.route('/')
+def home():
+    return render_template('upload.html')  # This page gives options to upload or start webcam analysis
 
-# Open webcam
-cap = cv2.VideoCapture(0)
-while cap.isOpened():
-    ret, frame = cap.read()
-    if not ret:
-        break
-    frame = detect_attributes(frame)
-    cv2.imshow('Face Detection', frame)
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
+@app.route('/upload_video', methods=['POST'])
+def upload_video():
+    if 'file' not in request.files:
+        return "No file part", 400
+    file = request.files['file']
+    
+    if file.filename == '':
+        return "No selected file", 400
+    
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(file_path)
+        
+        return Response(process_video(file_path), mimetype='multipart/x-mixed-replace; boundary=frame')
+    
+    return "Invalid file format", 400
 
-cap.release()
-cv2.destroyAllWindows()
+def process_video(video_path):
+    cap = cv2.VideoCapture(video_path)
+    
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        frame = detect_attributes(frame)  # Process the frame with face detection, age, gender, and emotion
+
+        # Convert frame to JPEG
+        ret, jpeg = cv2.imencode('.jpg', frame)
+        if not ret:
+            continue
+
+        # Yield the image as part of a multipart response
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + jpeg.tobytes() + b'\r\n\r\n')
+
+@app.route('/video_feed', methods=['GET'])
+def video_feed():
+    return Response(generate_video_feed(),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
+
+def generate_video_feed():
+    cap = cv2.VideoCapture(0)  # Using webcam for live video feed
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        frame = detect_attributes(frame)  # Process the frame with face detection, age, gender, and emotion
+
+        # Convert frame to JPEG
+        ret, jpeg = cv2.imencode('.jpg', frame)
+        if not ret:
+            continue
+
+        # Yield the image as part of a multipart response
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + jpeg.tobytes() + b'\r\n\r\n')
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5001, debug=True)

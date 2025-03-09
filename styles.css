@@ -1,0 +1,9 @@
+body {
+    text-align: center;
+    font-family: Arial, sans-serif;
+}
+
+video, canvas, img {
+    width: 50%;
+    margin-top: 10px;
+}
