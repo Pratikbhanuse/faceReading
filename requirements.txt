@@ -1,4 +1,4 @@
-python==3.10  # or python==3.11
+# python==3.10  # or python==3.11
 streamlit==1.18.0
 opencv-python==4.7.0.72
 deepface==0.0.75
