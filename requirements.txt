@@ -1,5 +1,6 @@
 streamlit==1.18.0
 opencv-python==4.7.0.72
 deepface==0.0.75
-tensorflow==2.15.0  # This version is likely compatible with Python 3.12
+tensorflow==2.15.0
+python==3.10  # or python==3.11
 numpy==1.24.2  # Ensure compatibility with tensorflow 2.15
