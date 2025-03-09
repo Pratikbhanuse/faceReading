@@ -1,29 +1,31 @@
-# Face Attribute Detection with Streamlit
+# Face Reading Web App
 
-This project uses **Streamlit** to create a real-time face attribute detection application. The app detects the following attributes of faces in a video:
+This web application performs real-time facial attribute detection using computer vision and deep learning models. The app can detect various attributes such as age, gender, and emotion from video or webcam feed. Users can either upload a video or start real-time analysis directly from their webcam.
 
-- **Age**
-- **Gender**
-- **Emotion**
-
-It uses pre-trained models for age and gender detection, and the **DeepFace** library to analyze emotions.
+The app uses:
+- **OpenCV** for face detection.
+- **DeepFace** for emotion analysis.
+- **Pre-trained DNN models** for age and gender prediction.
 
 ## Features
 
-- **Real-time face detection** using OpenCV.
-- **Age and gender prediction** using pre-trained models.
-- **Emotion analysis** using DeepFace.
+- **Upload Video**: Upload a video file to analyze the faces in it for age, gender, and emotion.
+- **Real-Time Webcam Analysis**: Stream your webcam feed for real-time facial analysis.
+- **Age Prediction**: Predict the approximate age group of detected faces.
+- **Gender Prediction**: Predict the gender of detected faces.
+- **Emotion Analysis**: Detect the dominant emotion of the detected faces.
 
 ## Requirements
 
-To run the app, you need the following Python packages:
-
-- Streamlit
+- Python 3.x
+- Flask
 - OpenCV
 - DeepFace
-- NumPy
+- Werkzeug
 
-You can install the required dependencies using the following command:
+### Installation
 
-```bash
-pip install -r requirements.txt
+1. Clone this repository:
+   ```bash
+   git clone https://github.com/pratikbhanuse/faceReading.git
+   cd faceReading
